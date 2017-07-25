@@ -62,6 +62,7 @@ type redisNode struct {
     updateTime	    time.Time
 
     closed	    bool
+	passWord	string
 }
 
 func (node *redisNode) getConn() (*redisConn, error) {
@@ -215,7 +216,6 @@ func (node *redisNode) do(cmd string, args ...interface{}) (interface{}, error) 
 	conn.shutdown()
 	return nil, err
     }
-
     node.releaseConn(conn)
 
     return reply, err

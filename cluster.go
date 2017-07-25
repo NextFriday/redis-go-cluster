@@ -34,6 +34,7 @@ type Options struct {
 
     KeepAlive	    int		    // Maximum keep alive connecion in each node
     AliveTime	    time.Duration   // Keep alive timeout
+	PassWord		string			// redis password
 }
 
 // Cluster is a redis client that manage connections to redis nodes, 
@@ -73,6 +74,7 @@ func NewCluster(options *Options) (*Cluster, error) {
 	keepAlive: options.KeepAlive,
 	aliveTime: options.AliveTime,
 	updateList: make(chan updateMesg),
+
     }
 
     for i := range options.StartNodes {
@@ -83,6 +85,7 @@ func NewCluster(options *Options) (*Cluster, error) {
 	    writeTimeout: options.WriteTimeout,
 	    keepAlive: options.KeepAlive,
 	    aliveTime: options.AliveTime,
+		passWord: options.PassWord,
 	}
 
 	err := cluster.update(node)
@@ -312,6 +315,13 @@ func checkReply(reply interface{}) int {
 }
 
 func (cluster *Cluster) update(node *redisNode) error {
+	if node.passWord != "" {
+		err, _ := Values(node.do("auth", node.passWord))
+		if err != nil {
+			fmt.Printf("first auth fail, err:%s\n", err)
+		}
+	}
+	tempPassword := node.passWord
     info, err := Values(node.do("CLUSTER", "SLOTS"))
     if err != nil {
 	return err
@@ -386,7 +396,14 @@ func (cluster *Cluster) update(node *redisNode) error {
 		writeTimeout: cluster.writeTimeout,
 		keepAlive: cluster.keepAlive,
 		aliveTime: cluster.aliveTime,
+			passWord: tempPassword,
 	    }
+		if node.passWord != "" {
+			err, _ := Values(node.do("AUTH", node.passWord))
+			if err != nil {
+				fmt.Printf("second auth fail, err:%s", err)
+			}
+		}
 	}
 
 	n := len(slot)
